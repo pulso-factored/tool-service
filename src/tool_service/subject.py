@@ -12,7 +12,8 @@ from dataclasses import dataclass
 
 from tool_service.contract import ExecuteRequest
 
-SUBJECT_PARAM = "customer_id"
+# agent-core's AuthzPort names the subject parameter (``AGENTCORE_AUTHZ_BIND_KEYS``); either name is accepted.
+SUBJECT_PARAMS = ("customer_id", "subject_ref")
 
 
 @dataclass(frozen=True)
@@ -42,9 +43,7 @@ def resolve(request: ExecuteRequest) -> Subject | Refused:
         return Refused("principal_not_served")
     if context.subject is not None and context.subject.kind == "customer":
         claimed.append(context.subject.ref)
-    bound = request.bound_params.get(SUBJECT_PARAM)
-    if bound:
-        claimed.append(bound)
+    claimed.extend(value for name in SUBJECT_PARAMS if (value := request.bound_params.get(name)))
     if len(set(claimed)) != 1:
         return Refused("subject_mismatch")
     return Subject(customer_id=claimed[0])
