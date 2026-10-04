@@ -1,0 +1,14 @@
+id: leer_pqr_cliente
+version: 1.0.0
+risk_class: read
+min_auth_level: session
+idempotent: true
+source: customer_cases
+description: Lista las PQR y casos del cliente atendido y su estado, del más reciente al más antiguo.
+args_schema:
+  type: object
+  additionalProperties: false
+  properties:
+    limite:
+      type: integer
+      default: 10

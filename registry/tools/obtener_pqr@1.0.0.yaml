@@ -1,0 +1,15 @@
+id: obtener_pqr
+version: 1.0.0
+risk_class: read
+min_auth_level: session
+idempotent: true
+source: customer_cases
+description: Lee la PQR radicada con una clave de idempotencia (verificación de radicar_pqr).
+args_schema:
+  type: object
+  additionalProperties: false
+  properties:
+    idempotency_key:
+      type: string
+  required:
+  - idempotency_key

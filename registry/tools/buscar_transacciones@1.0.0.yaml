@@ -1,0 +1,25 @@
+id: buscar_transacciones
+version: 1.0.0
+risk_class: read
+min_auth_level: session
+idempotent: true
+source: customer_transactions
+description: Busca movimientos del cliente atendido por texto (comercio o categoría), rango de fechas o monto, del
+  más reciente al más antiguo.
+args_schema:
+  type: object
+  additionalProperties: false
+  properties:
+    texto:
+      type: string
+    desde:
+      type: string
+    hasta:
+      type: string
+    monto_min:
+      type: number
+    monto_max:
+      type: number
+    limite:
+      type: integer
+      default: 10

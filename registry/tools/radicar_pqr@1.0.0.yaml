@@ -1,0 +1,19 @@
+id: radicar_pqr
+version: 1.0.0
+risk_class: write_reversible
+min_auth_level: step_up
+idempotent: true
+readback_by: idempotency_key
+source: customer_cases
+description: Radica una PQR de disputa por un movimiento del cliente atendido (requiere confirmación).
+args_schema:
+  type: object
+  additionalProperties: false
+  properties:
+    transaction_id:
+      type: string
+    descripcion:
+      type: string
+  required:
+  - transaction_id
+  - descripcion

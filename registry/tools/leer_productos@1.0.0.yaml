@@ -1,0 +1,14 @@
+id: leer_productos
+version: 1.0.0
+risk_class: read
+min_auth_level: session
+idempotent: true
+source: customer_products
+description: Lista los productos del cliente atendido (tipo, saldo, cupo, tasa, estado, mora).
+args_schema:
+  type: object
+  additionalProperties: false
+  properties:
+    limite:
+      type: integer
+      default: 20
