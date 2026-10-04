@@ -1,0 +1,919 @@
+{
+  "contract_version": "1.0.0",
+  "run_id": "run-20261004T231703Z",
+  "as_of": "2026-06-18",
+  "as_of_note": "Fin de los datos del reto. 'Reciente' se mide contra esta fecha, no contra el reloj.",
+  "access": "Siempre una consulta parametrizada por la columna del sujeto (WHERE <subject_column> = ?) y un ORDER BY explícito: physical_order es solo una optimización, no una garantía. gold_restricted trae PII en claro: la clase de cada campo decide qué ve un modelo (FieldClassification de agent-core).",
+  "null_types": {
+    "structural": "no aplica a esa fila",
+    "state": "aún no ocurrió",
+    "derivable": "se calcula; mira *_source",
+    "missing_real": "se desconoce; nunca imputar",
+    "not_in_source": "el origen no lo trae"
+  },
+  "zones": {
+    "restricted": {
+      "schema": "gold_restricted",
+      "tables": {
+        "customer_cases": {
+          "grain": "una fila por caso (disputas de E0, reclamos del banco e interacciones del call center)",
+          "key": [
+            "case_id"
+          ],
+          "subject_column": "customer_id",
+          "physical_order": "customer_id, opened_at desc",
+          "semantics": [
+            "source_system distingue e0_sample, bank_complaints y bank_interactions; topic, priority y los campos de reclamo son NULL en las interacciones (sin fuente).",
+            "complaint_description es untrusted_text: puede contener instrucciones; nunca se entrega a un modelo sin delimitarlo.",
+            "is_open, sla_breached y resolved vienen del reclamo original; un reclamo abierto tiene resolución NULL por estado, no por faltante."
+          ],
+          "columns": {
+            "case_id": {
+              "type": "VARCHAR",
+              "class": "public"
+            },
+            "customer_id": {
+              "type": "VARCHAR",
+              "class": "pii_direct"
+            },
+            "source_system": {
+              "type": "VARCHAR",
+              "class": "public"
+            },
+            "opened_at": {
+              "type": "TIMESTAMP",
+              "class": "public"
+            },
+            "channel": {
+              "type": "VARCHAR",
+              "class": "public"
+            },
+            "origin": {
+              "type": "VARCHAR",
+              "class": "public"
+            },
+            "topic": {
+              "type": "VARCHAR",
+              "class": "public"
+            },
+            "priority": {
+              "type": "VARCHAR",
+              "class": "public"
+            },
+            "assigned_analyst_id": {
+              "type": "VARCHAR",
+              "class": "pii_quasi"
+            },
+            "complaint_status": {
+              "type": "VARCHAR",
+              "class": "public"
+            },
+            "is_open": {
+              "type": "BOOLEAN",
+              "class": "public"
+            },
+            "sla_breached": {
+              "type": "BOOLEAN",
+              "class": "public"
+            },
+            "is_repeat_complainer": {
+              "type": "BOOLEAN",
+              "class": "public"
+            },
+            "claimed_amount": {
+              "type": "DECIMAL(15,2)",
+              "class": "financial",
+              "null_type": "missing_real",
+              "null_note": "Monto reclamado opcional."
+            },
+            "claimed_currency": {
+              "type": "VARCHAR",
+              "class": "public"
+            },
+            "complaint_description": {
+              "type": "VARCHAR",
+              "class": "untrusted_text"
+            },
+            "closed_at": {
+              "type": "TIMESTAMP",
+              "class": "public"
+            },
+            "resolved": {
+              "type": "BOOLEAN",
+              "class": "public"
+            },
+            "resolution_code": {
+              "type": "VARCHAR",
+              "class": "public"
+            },
+            "csat": {
+              "type": "INTEGER",
+              "class": "public"
+            }
+          }
+        },
+        "customer_digital_summary": {
+          "grain": "una fila por cliente con actividad digital identificada en los 90 días previos a as_of",
+          "key": [
+            "customer_id"
+          ],
+          "subject_column": "customer_id",
+          "physical_order": "customer_id",
+          "semantics": [
+            "Un cliente AUSENTE de esta tabla no tiene actividad digital identificada en la ventana; no significa que se desconozca.",
+            "Incluye eventos cuyo cliente se derivó de su sesión; las sesiones totalmente anónimas no se atribuyen a nadie.",
+            "No contiene eventos crudos, IP ni URL."
+          ],
+          "columns": {
+            "customer_id": {
+              "type": "VARCHAR",
+              "class": "pii_direct"
+            },
+            "last_event_at": {
+              "type": "TIMESTAMP",
+              "class": "public"
+            },
+            "last_login_at": {
+              "type": "TIMESTAMP",
+              "class": "public"
+            },
+            "sessions_90d": {
+              "type": "BIGINT",
+              "class": "public"
+            },
+            "logins_90d": {
+              "type": "BIGINT",
+              "class": "public"
+            },
+            "error_events_90d": {
+              "type": "BIGINT",
+              "class": "public"
+            },
+            "purchases_90d": {
+              "type": "BIGINT",
+              "class": "public"
+            },
+            "channels_used_90d": {
+              "type": "BIGINT",
+              "class": "public"
+            },
+            "last_channel": {
+              "type": "VARCHAR",
+              "class": "public"
+            },
+            "last_app_version": {
+              "type": "VARCHAR",
+              "class": "public"
+            }
+          }
+        },
+        "customer_products": {
+          "grain": "una fila por producto",
+          "key": [
+            "product_id"
+          ],
+          "subject_column": "customer_id",
+          "physical_order": "customer_id, opening_date desc",
+          "semantics": [
+            "credit_limit NULL con credit_limit_applicable=false significa NO APLICA (solo tarjetas de crédito y préstamos tienen límite); con credit_limit_applicable=true significa DESCONOCIDO (is_missing_credit_limit).",
+            "currency solo toma USD, COP o ARS: no existe MXN en los datos aunque el diccionario lo documente.",
+            "product_number es pii_direct."
+          ],
+          "columns": {
+            "product_id": {
+              "type": "VARCHAR",
+              "class": "public"
+            },
+            "customer_id": {
+              "type": "VARCHAR",
+              "class": "pii_direct"
+            },
+            "product_type": {
+              "type": "VARCHAR",
+              "class": "public"
+            },
+            "product_number": {
+              "type": "VARCHAR",
+              "class": "pii_direct"
+            },
+            "currency": {
+              "type": "VARCHAR",
+              "class": "public"
+            },
+            "current_balance": {
+              "type": "DECIMAL(15,2)",
+              "class": "financial"
+            },
+            "credit_limit": {
+              "type": "DECIMAL(15,2)",
+              "class": "financial",
+              "null_type": "structural",
+              "null_note": "Solo aplica a tarjeta de crédito y préstamos; dentro de lo aplicable ~5% es faltante real (is_missing_credit_limit).",
+              "related_flags": [
+                "is_missing_credit_limit",
+                "credit_limit_applicable"
+              ]
+            },
+            "interest_rate": {
+              "type": "DECIMAL(5,2)",
+              "class": "financial",
+              "null_type": "missing_real",
+              "null_note": "~10% sin tasa."
+            },
+            "product_status": {
+              "type": "VARCHAR",
+              "class": "public"
+            },
+            "opening_date": {
+              "type": "DATE",
+              "class": "public"
+            },
+            "expiration_date": {
+              "type": "DATE",
+              "class": "public",
+              "null_type": "structural",
+              "null_note": "Solo productos a plazo."
+            },
+            "days_past_due": {
+              "type": "INTEGER",
+              "class": "financial",
+              "null_type": "structural",
+              "null_note": "Solo aplica a créditos."
+            },
+            "last_transaction_date": {
+              "type": "TIMESTAMP",
+              "class": "public",
+              "null_type": "state",
+              "null_note": "Producto sin movimientos todavía."
+            },
+            "credit_limit_applicable": {
+              "type": "BOOLEAN",
+              "class": "public"
+            },
+            "is_missing_credit_limit": {
+              "type": "BOOLEAN",
+              "class": "public"
+            }
+          }
+        },
+        "customer_profile": {
+          "grain": "una fila por cliente",
+          "key": [
+            "customer_id"
+          ],
+          "subject_column": "customer_id",
+          "physical_order": "customer_id",
+          "semantics": [
+            "NULL en un dato de contacto o demográfico significa DESCONOCIDO, nunca 'ninguno': mira la bandera is_missing_* de la columna.",
+            "branch_link_valid=false: registration_branch_id no corresponde a ninguna sucursal (ocurre en ~99,99% de los clientes); no lo uses para unir.",
+            "credit_score y estimated_monthly_income son financial: faltan en ~15% y ~20%; nunca los imputes."
+          ],
+          "columns": {
+            "customer_id": {
+              "type": "VARCHAR",
+              "class": "pii_direct"
+            },
+            "document_type": {
+              "type": "VARCHAR",
+              "class": "public"
+            },
+            "document_number": {
+              "type": "VARCHAR",
+              "class": "pii_direct"
+            },
+            "first_name": {
+              "type": "VARCHAR",
+              "class": "pii_direct"
+            },
+            "last_name": {
+              "type": "VARCHAR",
+              "class": "pii_direct"
+            },
+            "date_of_birth": {
+              "type": "DATE",
+              "class": "pii_quasi"
+            },
+            "gender": {
+              "type": "VARCHAR",
+              "class": "pii_quasi"
+            },
+            "email": {
+              "type": "VARCHAR",
+              "class": "pii_direct",
+              "null_type": "missing_real",
+              "null_note": "Opcional en el diccionario. No se imputa; is_missing_* lo expone.",
+              "related_flags": [
+                "is_missing_email"
+              ]
+            },
+            "mobile_phone": {
+              "type": "VARCHAR",
+              "class": "pii_direct",
+              "null_type": "missing_real",
+              "null_note": "Opcional en el diccionario. No se imputa; is_missing_* lo expone.",
+              "related_flags": [
+                "is_missing_mobile_phone"
+              ]
+            },
+            "landline_phone": {
+              "type": "VARCHAR",
+              "class": "pii_direct",
+              "null_type": "missing_real",
+              "null_note": "Opcional en el diccionario. No se imputa; is_missing_* lo expone."
+            },
+            "address": {
+              "type": "VARCHAR",
+              "class": "pii_direct",
+              "null_type": "missing_real",
+              "null_note": "Opcional en el diccionario. No se imputa; is_missing_* lo expone."
+            },
+            "city": {
+              "type": "VARCHAR",
+              "class": "pii_quasi"
+            },
+            "state": {
+              "type": "VARCHAR",
+              "class": "pii_quasi"
+            },
+            "country_iso2": {
+              "type": "VARCHAR",
+              "class": "public"
+            },
+            "postal_code": {
+              "type": "VARCHAR",
+              "class": "pii_quasi",
+              "null_type": "missing_real",
+              "null_note": "Opcional en el diccionario. No se imputa; is_missing_* lo expone."
+            },
+            "segment": {
+              "type": "VARCHAR",
+              "class": "public"
+            },
+            "customer_status": {
+              "type": "VARCHAR",
+              "class": "public"
+            },
+            "credit_score": {
+              "type": "INTEGER",
+              "class": "financial",
+              "null_type": "missing_real",
+              "null_note": "Opcional en el diccionario. No se imputa; is_missing_* lo expone.",
+              "related_flags": [
+                "is_missing_credit_score"
+              ]
+            },
+            "estimated_monthly_income": {
+              "type": "DECIMAL(12,2)",
+              "class": "financial",
+              "null_type": "missing_real",
+              "null_note": "Opcional en el diccionario. No se imputa; is_missing_* lo expone."
+            },
+            "registration_date": {
+              "type": "TIMESTAMP",
+              "class": "pii_quasi"
+            },
+            "accepts_marketing": {
+              "type": "BOOLEAN",
+              "class": "public"
+            },
+            "detected_accent": {
+              "type": "VARCHAR",
+              "class": "pii_quasi",
+              "null_type": "missing_real",
+              "null_note": "Opcional en el diccionario. No se imputa; is_missing_* lo expone."
+            },
+            "branch_link_valid": {
+              "type": "BOOLEAN",
+              "class": "public"
+            },
+            "is_missing_credit_score": {
+              "type": "BOOLEAN",
+              "class": "public"
+            },
+            "is_missing_income": {
+              "type": "BOOLEAN",
+              "class": "public"
+            },
+            "is_missing_accent": {
+              "type": "BOOLEAN",
+              "class": "public"
+            },
+            "is_missing_email": {
+              "type": "BOOLEAN",
+              "class": "public"
+            },
+            "is_missing_mobile_phone": {
+              "type": "BOOLEAN",
+              "class": "public"
+            },
+            "last_updated": {
+              "type": "TIMESTAMP",
+              "class": "public"
+            }
+          }
+        },
+        "customer_transactions": {
+          "grain": "una fila por transacción válida",
+          "key": [
+            "transaction_id"
+          ],
+          "subject_column": "customer_id",
+          "physical_order": "customer_id, transaction_ts desc",
+          "semantics": [
+            "amount_usd es APROXIMADO cuando amount_usd_source='derived_fx' (el valor reportado difiere ~1% de monto x tasa del día); 'reported' es el valor original y 'derived_identity' es exacto (moneda USD).",
+            "merchant_name, merchant_category y transaction_category solo existen en purchase y payment; branch_id solo en atm y branch. Fuera de eso NULL significa NO APLICA, no desconocido.",
+            "product_quarantined=true: el producto de la transacción está en cuarentena por número duplicado, pero la transacción es válida.",
+            "transaction_country_iso2 puede ser US, ES o BR (compras en el extranjero): es señal, no error.",
+            "fraud_score falta en ~20% de forma uniforme."
+          ],
+          "columns": {
+            "transaction_id": {
+              "type": "VARCHAR",
+              "class": "public"
+            },
+            "customer_id": {
+              "type": "VARCHAR",
+              "class": "pii_direct"
+            },
+            "product_id": {
+              "type": "VARCHAR",
+              "class": "public"
+            },
+            "transaction_ts": {
+              "type": "TIMESTAMP",
+              "class": "public"
+            },
+            "event_date": {
+              "type": "DATE",
+              "class": "public"
+            },
+            "transaction_type": {
+              "type": "VARCHAR",
+              "class": "public"
+            },
+            "transaction_category": {
+              "type": "VARCHAR",
+              "class": "public",
+              "null_type": "structural",
+              "null_note": "Solo purchase y payment; ~5% faltante real dentro de lo aplicable."
+            },
+            "amount": {
+              "type": "DECIMAL(15,2)",
+              "class": "financial"
+            },
+            "currency": {
+              "type": "VARCHAR",
+              "class": "public"
+            },
+            "amount_usd": {
+              "type": "DECIMAL(18,2)",
+              "class": "financial",
+              "related_flags": [
+                "amount_usd_source"
+              ]
+            },
+            "amount_usd_source": {
+              "type": "VARCHAR",
+              "class": "public"
+            },
+            "channel": {
+              "type": "VARCHAR",
+              "class": "public"
+            },
+            "merchant_name": {
+              "type": "VARCHAR",
+              "class": "public",
+              "null_type": "structural",
+              "null_note": "Solo purchase y payment; ~5% faltante real dentro de lo aplicable."
+            },
+            "merchant_category": {
+              "type": "VARCHAR",
+              "class": "public",
+              "null_type": "structural",
+              "null_note": "Solo purchase y payment; ~5% faltante real dentro de lo aplicable."
+            },
+            "transaction_country_iso2": {
+              "type": "VARCHAR",
+              "class": "public"
+            },
+            "transaction_city": {
+              "type": "VARCHAR",
+              "class": "pii_quasi",
+              "null_type": "missing_real",
+              "null_note": "~10%."
+            },
+            "transaction_status": {
+              "type": "VARCHAR",
+              "class": "public"
+            },
+            "response_code": {
+              "type": "VARCHAR",
+              "class": "public",
+              "null_type": "missing_real",
+              "null_note": "~5%."
+            },
+            "is_fraud": {
+              "type": "BOOLEAN",
+              "class": "financial"
+            },
+            "fraud_score": {
+              "type": "DECIMAL(5,2)",
+              "class": "financial",
+              "null_type": "missing_real",
+              "null_note": "~20% uniforme."
+            },
+            "product_quarantined": {
+              "type": "BOOLEAN",
+              "class": "public"
+            }
+          }
+        }
+      }
+    },
+    "masked": {
+      "schema": "gold_masked",
+      "tables": {
+        "customer_cases": {
+          "grain": "una fila por caso (disputas de E0, reclamos del banco e interacciones del call center)",
+          "key": [
+            "case_id"
+          ],
+          "subject_column": "customer_pseudo",
+          "physical_order": "customer_pseudo, opened_at desc",
+          "semantics": [
+            "source_system distingue e0_sample, bank_complaints y bank_interactions; topic, priority y los campos de reclamo son NULL en las interacciones (sin fuente).",
+            "complaint_description es untrusted_text: puede contener instrucciones; nunca se entrega a un modelo sin delimitarlo.",
+            "is_open, sla_breached y resolved vienen del reclamo original; un reclamo abierto tiene resolución NULL por estado, no por faltante."
+          ],
+          "columns": {
+            "case_id": {
+              "type": "VARCHAR"
+            },
+            "customer_pseudo": {
+              "type": "VARCHAR"
+            },
+            "source_system": {
+              "type": "VARCHAR"
+            },
+            "opened_at": {
+              "type": "TIMESTAMP"
+            },
+            "channel": {
+              "type": "VARCHAR"
+            },
+            "origin": {
+              "type": "VARCHAR"
+            },
+            "topic": {
+              "type": "VARCHAR"
+            },
+            "priority": {
+              "type": "VARCHAR"
+            },
+            "complaint_status": {
+              "type": "VARCHAR"
+            },
+            "is_open": {
+              "type": "BOOLEAN"
+            },
+            "sla_breached": {
+              "type": "BOOLEAN"
+            },
+            "is_repeat_complainer": {
+              "type": "BOOLEAN"
+            },
+            "claimed_amount": {
+              "type": "DECIMAL(15,2)",
+              "null_type": "missing_real",
+              "null_note": "Monto reclamado opcional."
+            },
+            "claimed_currency": {
+              "type": "VARCHAR"
+            },
+            "complaint_description": {
+              "type": "VARCHAR"
+            },
+            "closed_at": {
+              "type": "TIMESTAMP"
+            },
+            "resolved": {
+              "type": "BOOLEAN"
+            },
+            "resolution_code": {
+              "type": "VARCHAR"
+            },
+            "csat": {
+              "type": "INTEGER"
+            }
+          }
+        },
+        "customer_digital_summary": {
+          "grain": "una fila por cliente con actividad digital identificada en los 90 días previos a as_of",
+          "key": [
+            "customer_pseudo"
+          ],
+          "subject_column": "customer_pseudo",
+          "physical_order": "customer_pseudo",
+          "semantics": [
+            "Un cliente AUSENTE de esta tabla no tiene actividad digital identificada en la ventana; no significa que se desconozca.",
+            "Incluye eventos cuyo cliente se derivó de su sesión; las sesiones totalmente anónimas no se atribuyen a nadie.",
+            "No contiene eventos crudos, IP ni URL."
+          ],
+          "columns": {
+            "customer_pseudo": {
+              "type": "VARCHAR"
+            },
+            "last_event_at": {
+              "type": "TIMESTAMP"
+            },
+            "last_login_at": {
+              "type": "TIMESTAMP"
+            },
+            "sessions_90d": {
+              "type": "BIGINT"
+            },
+            "logins_90d": {
+              "type": "BIGINT"
+            },
+            "error_events_90d": {
+              "type": "BIGINT"
+            },
+            "purchases_90d": {
+              "type": "BIGINT"
+            },
+            "channels_used_90d": {
+              "type": "BIGINT"
+            },
+            "last_channel": {
+              "type": "VARCHAR"
+            },
+            "last_app_version": {
+              "type": "VARCHAR"
+            }
+          }
+        },
+        "customer_products": {
+          "grain": "una fila por producto",
+          "key": [
+            "product_id"
+          ],
+          "subject_column": "customer_pseudo",
+          "physical_order": "customer_pseudo, opening_date desc",
+          "semantics": [
+            "credit_limit NULL con credit_limit_applicable=false significa NO APLICA (solo tarjetas de crédito y préstamos tienen límite); con credit_limit_applicable=true significa DESCONOCIDO (is_missing_credit_limit).",
+            "currency solo toma USD, COP o ARS: no existe MXN en los datos aunque el diccionario lo documente.",
+            "product_number es pii_direct."
+          ],
+          "columns": {
+            "product_id": {
+              "type": "VARCHAR"
+            },
+            "customer_pseudo": {
+              "type": "VARCHAR"
+            },
+            "product_type": {
+              "type": "VARCHAR"
+            },
+            "product_number_masked": {
+              "type": "VARCHAR"
+            },
+            "currency": {
+              "type": "VARCHAR"
+            },
+            "current_balance": {
+              "type": "DECIMAL(15,2)"
+            },
+            "credit_limit": {
+              "type": "DECIMAL(15,2)",
+              "null_type": "structural",
+              "null_note": "Solo aplica a tarjeta de crédito y préstamos; dentro de lo aplicable ~5% es faltante real (is_missing_credit_limit).",
+              "related_flags": [
+                "is_missing_credit_limit",
+                "credit_limit_applicable"
+              ]
+            },
+            "interest_rate": {
+              "type": "DECIMAL(5,2)",
+              "null_type": "missing_real",
+              "null_note": "~10% sin tasa."
+            },
+            "product_status": {
+              "type": "VARCHAR"
+            },
+            "opening_date": {
+              "type": "DATE"
+            },
+            "expiration_date": {
+              "type": "DATE",
+              "null_type": "structural",
+              "null_note": "Solo productos a plazo."
+            },
+            "days_past_due": {
+              "type": "INTEGER",
+              "null_type": "structural",
+              "null_note": "Solo aplica a créditos."
+            },
+            "last_transaction_date": {
+              "type": "TIMESTAMP",
+              "null_type": "state",
+              "null_note": "Producto sin movimientos todavía."
+            },
+            "credit_limit_applicable": {
+              "type": "BOOLEAN"
+            },
+            "is_missing_credit_limit": {
+              "type": "BOOLEAN"
+            }
+          }
+        },
+        "customer_profile": {
+          "grain": "una fila por cliente",
+          "key": [
+            "customer_pseudo"
+          ],
+          "subject_column": "customer_pseudo",
+          "physical_order": "customer_pseudo",
+          "semantics": [
+            "NULL en un dato de contacto o demográfico significa DESCONOCIDO, nunca 'ninguno': mira la bandera is_missing_* de la columna.",
+            "branch_link_valid=false: registration_branch_id no corresponde a ninguna sucursal (ocurre en ~99,99% de los clientes); no lo uses para unir.",
+            "credit_score y estimated_monthly_income son financial: faltan en ~15% y ~20%; nunca los imputes."
+          ],
+          "columns": {
+            "customer_pseudo": {
+              "type": "VARCHAR"
+            },
+            "document_type": {
+              "type": "VARCHAR"
+            },
+            "document_number_masked": {
+              "type": "VARCHAR"
+            },
+            "first_name_masked": {
+              "type": "VARCHAR"
+            },
+            "last_name_masked": {
+              "type": "VARCHAR"
+            },
+            "age_bucket": {
+              "type": "VARCHAR"
+            },
+            "email_masked": {
+              "type": "VARCHAR",
+              "related_flags": [
+                "is_missing_email"
+              ]
+            },
+            "mobile_phone_masked": {
+              "type": "VARCHAR",
+              "related_flags": [
+                "is_missing_mobile_phone"
+              ]
+            },
+            "landline_phone_masked": {
+              "type": "VARCHAR"
+            },
+            "address_masked": {
+              "type": "VARCHAR"
+            },
+            "country_iso2": {
+              "type": "VARCHAR"
+            },
+            "segment": {
+              "type": "VARCHAR"
+            },
+            "customer_status": {
+              "type": "VARCHAR"
+            },
+            "credit_score": {
+              "type": "INTEGER",
+              "null_type": "missing_real",
+              "null_note": "Opcional en el diccionario. No se imputa; is_missing_* lo expone.",
+              "related_flags": [
+                "is_missing_credit_score"
+              ]
+            },
+            "estimated_monthly_income": {
+              "type": "DECIMAL(12,2)",
+              "null_type": "missing_real",
+              "null_note": "Opcional en el diccionario. No se imputa; is_missing_* lo expone."
+            },
+            "accepts_marketing": {
+              "type": "BOOLEAN"
+            },
+            "branch_link_valid": {
+              "type": "BOOLEAN"
+            },
+            "is_missing_credit_score": {
+              "type": "BOOLEAN"
+            },
+            "is_missing_income": {
+              "type": "BOOLEAN"
+            },
+            "is_missing_accent": {
+              "type": "BOOLEAN"
+            },
+            "is_missing_email": {
+              "type": "BOOLEAN"
+            },
+            "is_missing_mobile_phone": {
+              "type": "BOOLEAN"
+            },
+            "last_updated": {
+              "type": "TIMESTAMP"
+            }
+          }
+        },
+        "customer_transactions": {
+          "grain": "una fila por transacción válida",
+          "key": [
+            "transaction_id"
+          ],
+          "subject_column": "customer_pseudo",
+          "physical_order": "customer_pseudo, transaction_ts desc",
+          "semantics": [
+            "amount_usd es APROXIMADO cuando amount_usd_source='derived_fx' (el valor reportado difiere ~1% de monto x tasa del día); 'reported' es el valor original y 'derived_identity' es exacto (moneda USD).",
+            "merchant_name, merchant_category y transaction_category solo existen en purchase y payment; branch_id solo en atm y branch. Fuera de eso NULL significa NO APLICA, no desconocido.",
+            "product_quarantined=true: el producto de la transacción está en cuarentena por número duplicado, pero la transacción es válida.",
+            "transaction_country_iso2 puede ser US, ES o BR (compras en el extranjero): es señal, no error.",
+            "fraud_score falta en ~20% de forma uniforme."
+          ],
+          "columns": {
+            "transaction_id": {
+              "type": "VARCHAR"
+            },
+            "customer_pseudo": {
+              "type": "VARCHAR"
+            },
+            "product_id": {
+              "type": "VARCHAR"
+            },
+            "transaction_ts": {
+              "type": "TIMESTAMP"
+            },
+            "event_date": {
+              "type": "DATE"
+            },
+            "transaction_type": {
+              "type": "VARCHAR"
+            },
+            "transaction_category": {
+              "type": "VARCHAR",
+              "null_type": "structural",
+              "null_note": "Solo purchase y payment; ~5% faltante real dentro de lo aplicable."
+            },
+            "amount": {
+              "type": "DECIMAL(15,2)"
+            },
+            "currency": {
+              "type": "VARCHAR"
+            },
+            "amount_usd": {
+              "type": "DECIMAL(18,2)",
+              "related_flags": [
+                "amount_usd_source"
+              ]
+            },
+            "amount_usd_source": {
+              "type": "VARCHAR"
+            },
+            "channel": {
+              "type": "VARCHAR"
+            },
+            "merchant_name": {
+              "type": "VARCHAR",
+              "null_type": "structural",
+              "null_note": "Solo purchase y payment; ~5% faltante real dentro de lo aplicable."
+            },
+            "merchant_category": {
+              "type": "VARCHAR",
+              "null_type": "structural",
+              "null_note": "Solo purchase y payment; ~5% faltante real dentro de lo aplicable."
+            },
+            "transaction_country_iso2": {
+              "type": "VARCHAR"
+            },
+            "transaction_status": {
+              "type": "VARCHAR"
+            },
+            "response_code": {
+              "type": "VARCHAR",
+              "null_type": "missing_real",
+              "null_note": "~5%."
+            },
+            "is_fraud": {
+              "type": "BOOLEAN"
+            },
+            "fraud_score": {
+              "type": "DECIMAL(5,2)",
+              "null_type": "missing_real",
+              "null_note": "~20% uniforme."
+            },
+            "product_quarantined": {
+              "type": "BOOLEAN"
+            }
+          }
+        }
+      }
+    }
+  }
+}

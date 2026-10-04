@@ -142,3 +142,20 @@ Measured on the published dataset (4.4 M transactions): each call takes 0–30 m
 - S3 source for the dataset (today a local folder), caching tuned for a deployment, tokens from a secret manager.
 - `filed_pqrs` is SQLite; the bank's real case system is not integrated (a filed PQR is not reconciled with it).
 - Per-role field policy for `leer_perfil` (needs data governance).
+
+## Staying in step with data-pipeline
+
+The tools select columns by name; data-pipeline publishes, with every run, a `read_model_contract.json` (which columns
+exist, what a NULL means, which flags go with a value). `contracts/read-model-contract.json` is a **pinned copy**, and
+`tests/test_read_model_contract.py` checks the tools against it: every selected column is published, a value is never
+returned without the flag that says how to read it (`related_flags`), every tool `source` is a published read-model,
+and returning a new direct identifier is a visible decision.
+
+```
+python scripts/sync_contract.py --from <data dir>           # refresh the pin from the latest publication
+python scripts/sync_contract.py --from <data dir> --check   # fail if it drifted (ignores run_id)
+TOOL_CONTRACT_DATA_DIR=<data dir> pytest tests/test_read_model_contract.py   # also compares the pin with a real run
+```
+
+A diff after a refresh means the pipeline changed what a read-model contains or means; the failing test names the tool.
+
