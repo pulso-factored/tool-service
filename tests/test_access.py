@@ -125,3 +125,13 @@ def test_settings_need_data_dir_and_distinct_tokens() -> None:
                 {"TOOL_DATA_DIR": "d", "TOOL_SERVICE_TOKENS": "sin-dos-puntos"}):
         with pytest.raises(ConfigError):
             Settings.from_env(env)
+
+
+def test_the_subject_parameter_may_be_named_subject_ref_and_all_names_must_agree(call: Call) -> None:
+    same = call("leer_productos", bound={"subject_ref": NATALIA, "customer_id": NATALIA}).json()
+    other = call("leer_productos", bound={"subject_ref": OTHER}).json()
+    split = call("leer_productos", bound={"subject_ref": NATALIA, "customer_id": OTHER}).json()
+
+    assert same["status"] == "ok"
+    assert other["status"] == "denied" and other["error"]["kind"] == "subject_mismatch"
+    assert split["status"] == "denied"

@@ -59,7 +59,7 @@ The models are in `src/tool_service/contract.py`.
 
 **Who the data is about** (`subject.py`): a `customer` principal reads its own id; an `advisor` reads the customer in
 its delegation (`on_behalf_of`) and nothing without one; every source present (principal, delegation, `context.subject`,
-`bound_params.customer_id`) must agree, otherwise `denied` (`subject_mismatch`). Other principal types have no data.
+`bound_params.customer_id` / `subject_ref`) must agree, otherwise `denied` (`subject_mismatch`). Other principal types have no data.
 The customer id is the dataset's `customer_id` (the platform's `bank_customer_id`).
 
 ## How agent-core calls these tools
@@ -74,8 +74,9 @@ The customer id is the dataset's `customer_id` (the platform's `bank_customer_id
    AGENTCORE_TOOL_SERVICE_TOKEN=<this consumer's token>
    agentcore serve … --tools agent_core.adapters.tools:http_tool_executor
    ```
-3. **Subject.** agent-core's real `AuthzPort.bind_params` must return `{"customer_id": <bank customer id>}`; until it
-   exists the service derives the subject from the verified claims (principal / delegation) and agrees with it.
+3. **Subject.** agent-core's `PolicyAuthz` returns the subject in `bound_params` under the names in
+   `AGENTCORE_AUTHZ_BIND_KEYS` (set `subject_ref,customer_id`); the service accepts either name, derives the subject
+   from the verified claims too, and refuses (`denied`) if any of them disagree.
 4. **Step-up.** `radicar_pqr` needs `step_up`: agent-core answers `step_up_required` itself below that level, and this
    service checks again.
 5. **Writes.** The engine sends `idempotency_key = action_id`; a replay returns the first filing; `obtener_pqr` with the
