@@ -89,3 +89,8 @@ class ToolInfo(Strict):
 
 class ToolList(Strict):
     tools: list[ToolInfo]
+
+
+#: Version of the provider contract (semver): a new optional field is a minor, anything a consumer or another
+#: provider could trip over is a major. Both sides pin a copy of ``contracts/tool-provider.openapi.json``.
+CONTRACT_VERSION = "1.0.0"
