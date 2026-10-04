@@ -26,7 +26,10 @@ implement to expose its own tools to agent-core (ADR 0025 in agent-core; design 
 | `obtener_pqr` | read (read-back of `radicar_pqr`) | session | `customer_cases` | `idempotency_key` |
 
 Movements and cases come **newest first** with an explicit order (the copilot does not sort by itself). Amounts are
-JSON numbers with their scale (`1342.80`), never strings or floats. Internal columns (fraud score, response code,
+JSON numbers with their scale (`1342.80`), never strings or floats. A nullable value that depends on the product or the source comes with the flag that says why: `credit_limit` with
+`credit_limit_applicable` / `is_missing_credit_limit` (not applicable vs unknown) and `amount_usd` with
+`amount_usd_source` (`reported`, `derived_identity` or the approximate `derived_fx`); see data-pipeline's
+`read_model_contract.json`. Internal columns (fraud score, response code,
 assigned analyst, CSAT, credit score, email, document number) are not returned.
 
 `leer_pqr_cliente` merges the dataset's cases with the PQRs filed through this service, so a PQR filed today is

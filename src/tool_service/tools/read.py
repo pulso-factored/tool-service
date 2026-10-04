@@ -12,11 +12,12 @@ from tool_service.tools.base import Env, Outcome, ToolSpec, closed, limit_proper
 
 PRODUCT_COLUMNS = (
     "product_id, product_type, product_number, currency, current_balance, credit_limit, interest_rate, "
-    "product_status, opening_date, expiration_date, days_past_due")
+    "product_status, opening_date, expiration_date, days_past_due, credit_limit_applicable, "
+    "is_missing_credit_limit")
 TRANSACTION_COLUMNS = (
     "transaction_id, product_id, transaction_ts, transaction_type, transaction_category, amount, currency, "
     "amount_usd, channel, merchant_name, merchant_category, transaction_country_iso2, transaction_city, "
-    "transaction_status")
+    "transaction_status, amount_usd_source")
 PROFILE_COLUMNS = (
     "customer_id, first_name, last_name, document_type, segment, customer_status, city, state, "
     "country_iso2, registration_date")
@@ -102,7 +103,10 @@ _LIMIT = {"limite": limit_property(10)}
 READ_TOOLS = (
     ToolSpec(
         id="leer_productos", source="customer_products", handler=leer_productos,
-        description="Lista los productos del cliente atendido (tipo, saldo, cupo, tasa, estado, mora).",
+        description="Lista los productos del cliente atendido (tipo, saldo, cupo, tasa, estado, mora). "
+                    "Un credit_limit nulo con credit_limit_applicable=false significa que el producto no tiene cupo "
+                    "(no aplica); con credit_limit_applicable=true significa que el cupo se desconoce "
+                    "(is_missing_credit_limit): no lo digas como 'sin cupo'.",
         args_schema=closed({"limite": limit_property(20)})),
     ToolSpec(
         id="leer_perfil", source="customer_profile", handler=leer_perfil,
@@ -111,12 +115,14 @@ READ_TOOLS = (
     ToolSpec(
         id="leer_movimientos", source="customer_transactions", handler=leer_movimientos,
         description="Lista los últimos movimientos del cliente atendido, del más reciente al más antiguo "
-                    "(monto, comercio, fecha, estado).",
+                    "(monto, comercio, fecha, estado). amount_usd es aproximado cuando amount_usd_source es "
+                    "'derived_fx'; 'reported' es el valor original.",
         args_schema=closed({"limite": limit_property(10), "product_id": {"type": "string", "maxLength": 64}})),
     ToolSpec(
         id="buscar_transacciones", source="customer_transactions", handler=buscar_transacciones,
         description="Busca movimientos del cliente atendido por texto (comercio o categoría), rango de fechas "
-                    "o monto, del más reciente al más antiguo.",
+                    "o monto, del más reciente al más antiguo. amount_usd es aproximado cuando amount_usd_source "
+                    "es 'derived_fx'.",
         args_schema=closed({
             "texto": {"type": "string", "minLength": 1, "maxLength": 100},
             "desde": {"type": "string", "format": "date"}, "hasta": {"type": "string", "format": "date"},
