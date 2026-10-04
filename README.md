@@ -62,6 +62,25 @@ its delegation (`on_behalf_of`) and nothing without one; every source present (p
 `bound_params.customer_id` / `subject_ref`) must agree, otherwise `denied` (`subject_mismatch`). Other principal types have no data.
 The customer id is the dataset's `customer_id` (the platform's `bank_customer_id`).
 
+## The shared contract
+
+`contracts/tool-provider.openapi.json` (OpenAPI 3.1, version in `contracts/tool-provider-version.txt`, currently 1.0.0)
+is the contract **every** tool provider implements and every consumer pins: the two routes, the request and response
+models, the six statuses and the rules around them (subject, writes, idempotency, step-up). It is provider-neutral
+(no health checks) and is generated from `src/tool_service/contract.py`:
+
+```
+uv run python scripts/export_contract.py          # regenerate
+uv run python scripts/export_contract.py --check  # CI: fails if the files drifted
+```
+
+- **This service** tests that its real answers (every kind of status, 401/404/422, the catalog) validate against it.
+- **agent-core** copies both files into `tests/contracts/` and tests that what `HttpToolExecutor` sends validates
+  against the request schema and that each response shape maps to the right `ToolResult`.
+- Changing it: a new optional field is a minor version; anything a consumer or another provider could trip over is a
+  major. Regenerate here, then copy the two files to agent-core in the same change set (its test names the version).
+- Another provider (a payments or CRM service) implements the same document and can reuse these schemas to check itself.
+
 ## How agent-core calls these tools
 
 1. **Registry.** `registry/tools/*.yaml` are the `ToolDef`s (generated from the catalog: `uv run python
@@ -118,6 +137,5 @@ Measured on the published dataset (4.4 M transactions): each call takes 0–30 m
 ## Not done yet
 
 - S3 source for the dataset (today a local folder), caching tuned for a deployment, tokens from a secret manager.
-- A shared contract schema file checked from both repos (the models live in `contract.py`).
 - `filed_pqrs` is SQLite; the bank's real case system is not integrated (a filed PQR is not reconciled with it).
 - Per-role field policy for `leer_perfil` (needs data governance).
