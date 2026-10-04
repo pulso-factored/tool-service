@@ -30,13 +30,13 @@ CREATE TABLE gold_restricted.gold_restricted.customer_profile (
 CREATE TABLE gold_restricted.gold_restricted.customer_products (
   product_id VARCHAR, customer_id VARCHAR, product_type VARCHAR, product_number VARCHAR, currency VARCHAR,
   current_balance DECIMAL(15,2), credit_limit DECIMAL(15,2), interest_rate DECIMAL(5,2), product_status VARCHAR,
-  opening_date DATE, expiration_date DATE, days_past_due INTEGER);
+  opening_date DATE, expiration_date DATE, days_past_due INTEGER, credit_limit_applicable BOOLEAN, is_missing_credit_limit BOOLEAN);
 CREATE TABLE gold_restricted.gold_restricted.customer_transactions (
   transaction_id VARCHAR, customer_id VARCHAR, product_id VARCHAR, transaction_ts TIMESTAMP, event_date DATE,
   transaction_type VARCHAR, transaction_category VARCHAR, amount DECIMAL(15,2), currency VARCHAR,
   amount_usd DECIMAL(18,2), channel VARCHAR, merchant_name VARCHAR, merchant_category VARCHAR,
   transaction_country_iso2 VARCHAR, transaction_city VARCHAR, transaction_status VARCHAR, response_code VARCHAR,
-  is_fraud BOOLEAN, fraud_score DECIMAL(5,2), product_quarantined BOOLEAN);
+  is_fraud BOOLEAN, fraud_score DECIMAL(5,2), product_quarantined BOOLEAN, amount_usd_source VARCHAR);
 CREATE TABLE gold_restricted.gold_restricted.customer_cases (
   case_id VARCHAR, customer_id VARCHAR, source_system VARCHAR, opened_at TIMESTAMP, channel VARCHAR,
   origin VARCHAR, topic VARCHAR, priority VARCHAR, assigned_analyst_id VARCHAR, complaint_status VARCHAR,
@@ -47,15 +47,15 @@ INSERT INTO gold_restricted.gold_restricted.customer_profile VALUES
   ('CLI-0000000001','CC','1000000001','Natalia','Prueba','natalia@example.test','premium','Active','Bogota','DC','CO','2020-01-01 00:00:00',700),
   ('CLI-0000000002','CC','1000000002','Otro','Cliente','otro@example.test','basic','Active','Cali','VAC','CO','2021-01-01 00:00:00',650);
 INSERT INTO gold_restricted.gold_restricted.customer_products VALUES
-  ('PRD-1','CLI-0000000001','credit_card','4111000011112222','USD',1342.80,5000.00,2.10,'Active','2022-03-01',NULL,0),
-  ('PRD-2','CLI-0000000001','checking_account','7720229470','USD',250.00,NULL,0.10,'Active','2023-05-10',NULL,NULL),
-  ('PRD-9','CLI-0000000002','credit_card','4111000099998888','USD',99.00,1000.00,2.10,'Active','2022-01-01',NULL,0);
+  ('PRD-1','CLI-0000000001','credit_card','4111000011112222','USD',1342.80,5000.00,2.10,'Active','2022-03-01',NULL,0,true,false),
+  ('PRD-2','CLI-0000000001','checking_account','7720229470','USD',250.00,NULL,0.10,'Active','2023-05-10',NULL,NULL,false,false),
+  ('PRD-9','CLI-0000000002','credit_card','4111000099998888','USD',99.00,1000.00,2.10,'Active','2022-01-01',NULL,0,true,false);
 INSERT INTO gold_restricted.gold_restricted.customer_transactions VALUES
-  ('TX-1','CLI-0000000001','PRD-1','2026-09-27 10:00:00','2026-09-27','purchase','retail',120.50,'USD',120.50,'pos','Tienda Aurora','retail','CO','Bogota','posted','00',false,0.10,false),
-  ('TX-2','CLI-0000000001','PRD-1','2026-09-28 18:30:00','2026-09-28','purchase','food',8.75,'USD',8.75,'pos','Cafe Sol','restaurants','CO','Bogota','posted','00',false,0.00,false),
-  ('TX-3','CLI-0000000001','PRD-1','2026-08-14 20:00:00','2026-08-14','purchase','food',64.20,'USD',64.20,'pos','Restaurante Mar','restaurants','CO','Bogota','posted','00',false,0.00,false),
-  ('TX-4','CLI-0000000001','PRD-2','2026-09-01 09:00:00','2026-09-01','purchase','retail',640.00,'USD',640.00,'online','Electro Norte','electronics','CO','Bogota','posted','00',false,0.70,false),
-  ('TX-9','CLI-0000000002','PRD-9','2026-09-29 09:00:00','2026-09-29','purchase','retail',55.00,'USD',55.00,'pos','Tienda Aurora','retail','CO','Cali','posted','00',false,0.00,false);
+  ('TX-1','CLI-0000000001','PRD-1','2026-09-27 10:00:00','2026-09-27','purchase','retail',120.50,'USD',120.50,'pos','Tienda Aurora','retail','CO','Bogota','posted','00',false,0.10,false,'reported'),
+  ('TX-2','CLI-0000000001','PRD-1','2026-09-28 18:30:00','2026-09-28','purchase','food',8.75,'USD',8.75,'pos','Cafe Sol','restaurants','CO','Bogota','posted','00',false,0.00,false,'reported'),
+  ('TX-3','CLI-0000000001','PRD-1','2026-08-14 20:00:00','2026-08-14','purchase','food',64.20,'USD',64.20,'pos','Restaurante Mar','restaurants','CO','Bogota','posted','00',false,0.00,false,'reported'),
+  ('TX-4','CLI-0000000001','PRD-2','2026-09-01 09:00:00','2026-09-01','purchase','retail',640.00,'USD',640.00,'online','Electro Norte','electronics','CO','Bogota','posted','00',false,0.70,false,'reported'),
+  ('TX-9','CLI-0000000002','PRD-9','2026-09-29 09:00:00','2026-09-29','purchase','retail',55.00,'USD',55.00,'pos','Tienda Aurora','retail','CO','Cali','posted','00',false,0.00,false,'reported');
 INSERT INTO gold_restricted.gold_restricted.customer_cases VALUES
   ('CASE-1','CLI-0000000001','crm','2026-07-01 08:00:00','phone','customer','card_dispute','medium','AN-1','Closed',false,false,false,300.00,'USD','Cargo duplicado','2026-07-05 10:00:00',true,'REFUND',5),
   ('CASE-9','CLI-0000000002','crm','2026-07-02 08:00:00','web','customer','fees','low',NULL,'Open',true,false,false,NULL,NULL,'Comision',NULL,NULL,NULL,NULL);

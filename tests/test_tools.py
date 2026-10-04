@@ -3,8 +3,14 @@
 from __future__ import annotations
 
 from decimal import Decimal
+from pathlib import Path
+from typing import Any
 
-from tests.conftest import NATALIA, OTHER, Call
+from fastapi.testclient import TestClient
+
+from tests.conftest import NATALIA, NOW, OTHER, OTHER_TOKEN, TOKEN, Call, build_run, context
+from tool_service.app import Service, create_app
+from tool_service.settings import Settings
 
 
 def test_products_come_newest_first_with_exact_decimals_and_only_curated_columns(call: Call) -> None:
@@ -119,3 +125,47 @@ def test_decimals_are_never_floats_on_the_wire(call: Call) -> None:
 
     assert {t["amount"] for t in result} == {Decimal("120.50"), Decimal("8.75"), Decimal("64.20"),
                                              Decimal("640.00")}
+
+
+def _read(tmp_path: Path, extra_sql: str, tool: str, args: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+    """The same wiring as the fixtures, over a published run that has extra rows."""
+    root = tmp_path / "data-extra"
+    build_run(root, "run-1", extra_sql=extra_sql)
+    settings = Settings(data_dir=root, tokens={"agent-core": TOKEN, "otro": OTHER_TOKEN},
+                        filed_db=tmp_path / "filed-extra.db", pointer_ttl_s=0.0)
+    client = TestClient(create_app(service=Service(settings, clock=lambda: NOW)))
+    body = {"tool": f"{tool}@1.0.0", "args": args or {}, "bound_params": {}, "context": context(), "idempotency_key": None}
+    response = client.post(f"/v1/tools/{tool}/execute", json=body, headers={"Authorization": f"Bearer {TOKEN}"})
+    assert response.status_code == 200 and response.json()["status"] == "ok"
+    return response.json()["result"]  # type: ignore[no-any-return]
+
+
+def test_a_missing_limit_says_whether_it_is_not_applicable_or_unknown(call: Call, tmp_path: Path) -> None:
+    by_id = {p["product_id"]: p for p in call("leer_productos").json()["result"]}
+    # A checking account has no limit: NOT APPLICABLE, not unknown.
+    assert by_id["PRD-2"]["credit_limit"] is None
+    assert by_id["PRD-2"]["credit_limit_applicable"] is False and by_id["PRD-2"]["is_missing_credit_limit"] is False
+    assert by_id["PRD-1"]["credit_limit_applicable"] is True and by_id["PRD-1"]["is_missing_credit_limit"] is False
+
+    # A credit card whose limit is not on file: UNKNOWN. Without the flags both cases would look identical.
+    unknown = _read(tmp_path, "INSERT INTO gold_restricted.gold_restricted.customer_products VALUES "
+                    "('PRD-3','CLI-0000000001','credit_card','4111000033334444','USD',10.00,NULL,2.10,'Active',"
+                    "'2024-01-01',NULL,0,true,true);", "leer_productos")
+    card = next(p for p in unknown if p["product_id"] == "PRD-3")
+    assert card["credit_limit"] is None
+    assert card["credit_limit_applicable"] is True and card["is_missing_credit_limit"] is True
+
+
+def test_movements_say_whether_the_usd_amount_is_reported_or_derived(call: Call, tmp_path: Path) -> None:
+    assert {t["amount_usd_source"] for t in call("leer_movimientos").json()["result"]} == {"reported"}
+
+    derived = _read(tmp_path, "INSERT INTO gold_restricted.gold_restricted.customer_transactions VALUES "
+                    "('TX-5','CLI-0000000001','PRD-1','2026-09-30 10:00:00','2026-09-30','purchase','retail',"
+                    "1000000.00,'COP',250.00,'pos','Tienda Norte','retail','CO','Bogota','posted','00',false,0.00,"
+                    "false,'derived_fx');", "leer_movimientos", {"limite": 1})
+    assert derived[0]["transaction_id"] == "TX-5" and derived[0]["amount_usd_source"] == "derived_fx"
+    search = _read(tmp_path / "s", "INSERT INTO gold_restricted.gold_restricted.customer_transactions VALUES "
+                   "('TX-5','CLI-0000000001','PRD-1','2026-09-30 10:00:00','2026-09-30','purchase','retail',"
+                   "1000000.00,'COP',250.00,'pos','Tienda Norte','retail','CO','Bogota','posted','00',false,0.00,"
+                   "false,'derived_fx');", "buscar_transacciones", {"texto": "Tienda Norte"})
+    assert [t["amount_usd_source"] for t in search] == ["derived_fx"]  # buscar_transacciones lo devuelve igual
