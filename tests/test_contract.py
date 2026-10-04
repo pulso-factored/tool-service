@@ -30,7 +30,7 @@ def test_the_pinned_contract_files_are_current() -> None:
     spec.loader.exec_module(module)
 
     assert module.main(["--check"]) == 0
-    assert DOC == contract_document()
+    assert contract_document() == DOC
     assert DOC["info"]["version"] == CONTRACT_VERSION
     assert (ROOT / "contracts" / "tool-provider-version.txt").read_text().strip() == CONTRACT_VERSION
 
